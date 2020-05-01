@@ -40,7 +40,7 @@ fail-at-end: &test
     - cluster
     - kubernetes
   script:
-    - echo "10.22.9.66 sonar.fastshop.com.br" >> /etc/hosts
+    - echo "10.22.9.66 sonar.dteixeira.com.br" >> /etc/hosts
     - sleep 3
   retry:
     max: 2
@@ -54,7 +54,7 @@ fail-at-end: &test
 process-test-resources:
   <<: *test
   script:
-    - echo "10.22.9.66 sonar.fastshop.com.br" >> /etc/hosts
+    - echo "10.22.9.66 sonar.dteixeira.com.br" >> /etc/hosts
     - echo "Realizando um segundo com Sonar-mvn-plugin"
     - mvn clean compile
 
@@ -95,20 +95,20 @@ build2:
     - name: docker:dind
       entrypoint: ["dockerd-entrypoint.sh"]
       command: ["--disable-legacy-registry","true"]
-      command: ["--insecure-registry","10.22.10.90:8082","--insecure-registry","nexus.fastshop.com.br:8083"]
+      command: ["--insecure-registry","10.22.10.90:8082","--insecure-registry","nexus.dteixeira.com.br:8083"]
   before_script:
-    - echo "10.22.10.90 nexus.fastshop.com.br" >> /etc/hosts
+    - echo "10.22.10.90 nexus.dteixeira.com.br" >> /etc/hosts
     - pwd
-    - docker login nexus.fastshop.com.br:8083 --username gitlab -p ${NEXUS_PASS}
+    - docker login nexus.dteixeira.com.br:8083 --username gitlab -p ${NEXUS_PASS}
   script:
     - ls -alh ./target/ || true
     - ls -alh .
     - pwd
     - docker info
     - uname -a
-    - docker build -t "hello:fastshop" .
-    - docker tag hello:fastshop nexus.fastshop.com.br:8083/hello:${CI_COMMIT_SHORT_SHA}
-    - docker push nexus.fastshop.com.br:8083/hello:${CI_COMMIT_SHORT_SHA}
+    - docker build -t "hello:dteixeira" .
+    - docker tag hello:dteixeira nexus.dteixeira.com.br:8083/hello:${CI_COMMIT_SHORT_SHA}
+    - docker push nexus.dteixeira.com.br:8083/hello:${CI_COMMIT_SHORT_SHA}
   retry:
     max: 2
     when:
@@ -122,7 +122,7 @@ deploy_EKS_dev: &deploy
   image: lachlanevenson/k8s-kubectl:latest
   stage: deploy
   variables:
-    CNAME: proxypass.fastshop.com.br
+    CNAME: proxypass.dteixeira.com.br
   environment:
     name: develop
     url: http://${CNAME}
@@ -148,7 +148,7 @@ deploy_EKS_prod:
   <<: *deploy
   environment:
     name: production
-    url: http://proxypass.fastshop.com.br
+    url: http://proxypass.dteixeira.com.br
   when: manual
   only:
     - master

@@ -57,12 +57,12 @@
     <repository>
         <id>maven-central</id>
         <name>maven-central</name>
-        <url>http://nexus.fastshop.com.br/nexus/repository/maven-central/</url>
+        <url>http://nexus.dteixeira.com.br/nexus/repository/maven-central/</url>
     </repository>
     <snapshotRepository>
         <id>maven-snapshots</id>
         <name>maven-snapshots</name>
-        <url>http://nexus.fastshop.com.br/nexus/repository/maven-snapshots/</url>
+        <url>http://nexus.dteixeira.com.br/nexus/repository/maven-snapshots/</url>
     </snapshotRepository>
 
 </project>

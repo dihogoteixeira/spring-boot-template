@@ -1,25 +1,25 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: ci-fastshop-hello
+  name: ci-dteixeira-hello
   labels:
-    app: ci-fastshop-hello
+    app: ci-dteixeira-hello
 spec:
   replicas: 1
   selector:
     matchLabels:
-      app: ci-fastshop-hello
+      app: ci-dteixeira-hello
 ########################################################################
 # Pod template
 ########################################################################
   template:
     metadata:
       labels:
-        app: ci-fastshop-hello
+        app: ci-dteixeira-hello
     spec:
       containers:
         - name: test
-          image: nexus.fastshop.com.br:8083/hello:__VERSION_PROJECT__
+          image: nexus.dteixeira.com.br:8083/hello:__VERSION_PROJECT__
           imagePullPolicy: Always
           ports:
             - containerPort: 8080
@@ -29,9 +29,9 @@ spec:
 apiVersion: v1
 kind: Service
 metadata:
-  name: ci-fastshop-hello
+  name: ci-dteixeira-hello
   labels:
-    app: ci-fastshop-hello
+    app: ci-dteixeira-hello
 spec:
   ports:
   - port: 8080
@@ -41,4 +41,4 @@ spec:
     name: http
   type: NodePort
   selector:
-    app: ci-fastshop-hello
+    app: ci-dteixeira-hello

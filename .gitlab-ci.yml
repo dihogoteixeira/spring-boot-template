@@ -1,0 +1,154 @@
+########################################################################
+# Declarando variaveis e modulos globais
+########################################################################
+variables:
+  MAVEN_CLI_OPTS: "-s .m2/settings.xml --batch-mode"
+  MAVEN_OPTS: "-Dmaven.repo.local=.m2/repository"
+
+image:
+  name: maven:3.3.9-jdk-8
+  entrypoint: ["/bin/sh", "-c"]
+
+########################################################################
+# o Modulo cache pode ser habilitado em conjunto ao Artifacts para que
+# seja possivel transportar os artefatos e disponibilizar eles para serem
+# baixados ou utilizado por todos os stages aplicando o modulo "policy"
+# apontando a "key" utilizada para serem baixados nos stages que precisem
+# dos artifacts.
+########################################################################
+cache:
+  policy: pull
+  key: "$CI_COMMIT_SHA"
+  paths:
+    - .m2/repository/
+    - target/*
+
+########################################################################
+# Declarando as fases de execucao da Pipeline
+########################################################################
+stages:
+  - test
+  - maven-build
+  - docker-build
+  - deploy
+########################################################################
+# Stage de Teste
+########################################################################
+fail-at-end: &test
+  stage: test
+  tags:
+    - cluster
+    - kubernetes
+  script:
+    - echo "10.22.9.66 sonar.fastshop.com.br" >> /etc/hosts
+    - sleep 3
+  retry:
+    max: 2
+    when:
+      - runner_system_failure
+      - stuck_or_timeout_failure
+      - unknown_failure
+########################################################################
+# Stage de Teste
+########################################################################
+process-test-resources:
+  <<: *test
+  script:
+    - echo "10.22.9.66 sonar.fastshop.com.br" >> /etc/hosts
+    - echo "Realizando um segundo com Sonar-mvn-plugin"
+    - mvn clean compile
+
+########################################################################
+# Stage de Build Maven
+########################################################################
+build1:
+  image: maven:3-jdk-8
+  stage: maven-build
+  artifacts:
+    name: "$CI_JOB_NAME-$CI_COMMIT_REF_NAME"
+    when: always
+    paths:
+      - ./target/
+  cache:
+    policy: push
+    key: $CI_COMMIT_SHA
+  script:
+    - "mvn clean package -DskipTests"
+    - pwd
+    - ls -alh ./target/* || true
+########################################################################
+# Stage de Build Docker-image
+########################################################################
+build2:
+  stage: docker-build
+  dependencies:
+    - build1
+  cache:
+    policy: pull
+    key: $CI_COMMIT_SHA
+  image:
+    name: docker:latest
+    entrypoint: ["/bin/sh", "-c"]
+  variables:
+    DOCKER_HOST: tcp://localhost:2375
+  services:
+    - name: docker:dind
+      entrypoint: ["dockerd-entrypoint.sh"]
+      command: ["--disable-legacy-registry","true"]
+      command: ["--insecure-registry","10.22.10.90:8082","--insecure-registry","nexus.fastshop.com.br:8083"]
+  before_script:
+    - echo "10.22.10.90 nexus.fastshop.com.br" >> /etc/hosts
+    - pwd
+    - docker login nexus.fastshop.com.br:8083 --username gitlab -p ${NEXUS_PASS}
+  script:
+    - ls -alh ./target/ || true
+    - ls -alh .
+    - pwd
+    - docker info
+    - uname -a
+    - docker build -t "hello:fastshop" .
+    - docker tag hello:fastshop nexus.fastshop.com.br:8083/hello:${CI_COMMIT_SHORT_SHA}
+    - docker push nexus.fastshop.com.br:8083/hello:${CI_COMMIT_SHORT_SHA}
+  retry:
+    max: 2
+    when:
+      - runner_system_failure
+      - stuck_or_timeout_failure
+      - unknown_failure
+########################################################################
+# Realizando deploy no EKS - Develop
+########################################################################
+deploy_EKS_dev: &deploy
+  image: lachlanevenson/k8s-kubectl:latest
+  stage: deploy
+  variables:
+    CNAME: proxypass.fastshop.com.br
+  environment:
+    name: develop
+    url: http://${CNAME}
+  script:
+    - kubectl version
+    - sed -i "s/__VERSION_PROJECT__/${CI_COMMIT_SHORT_SHA}/" kubernetes_deploy.yml
+    - kubectl apply -f kubernetes_deploy.yml
+    - echo "Deploy realizado!"
+  retry:
+    max: 2
+    when:
+      - runner_system_failure
+      - stuck_or_timeout_failure
+      - unknown_failure
+  only:
+    - develop
+
+########################################################################
+# Realizando deploy no EKS - Production
+########################################################################
+
+deploy_EKS_prod:
+  <<: *deploy
+  environment:
+    name: production
+    url: http://proxypass.fastshop.com.br
+  when: manual
+  only:
+    - master

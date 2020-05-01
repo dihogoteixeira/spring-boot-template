@@ -1,0 +1,114 @@
+apiVersion: extensions/v1beta1
+kind: Deployment
+metadata:
+  annotations:
+    deployment.kubernetes.io/revision: "35"
+    kubectl.kubernetes.io/last-applied-configuration: |
+      {"apiVersion":"apps/v1","kind":"Deployment","metadata":{"annotations":{},"labels":{"app":"spe-order","type":"spe"},"name":"spe-order","namespace":"default"},"spec":{"minReadySeconds":60,"replicas":1,"selector":{"matchLabels":{"app":"spe-order"}},"strategy":{"rollingUpdate":{"maxSurge":1,"maxUnavailable":0},"type":"RollingUpdate"},"template":{"metadata":{"labels":{"app":"spe-order"}},"spec":{"affinity":{"podAntiAffinity":{"requiredDuringSchedulingIgnoredDuringExecution":[{"labelSelector":{"matchExpressions":[{"key":"app","operator":"In","values":["spe-order"]}]},"topologyKey":"kubernetes.oi/hostname"}]}},"containers":[{"env":[{"name":"ENV_PS_APPLICATION_MEMORY","value":"-Xmx256m"},{"name":"ENV_PS_EXTRAS","value":"-DEUREKA_URL1=http://payshop-eureka-server:8761/eureka/eureka -DSERVER_CONFIG=http://payshop-config-server:8888 -DPS_NAME_APPLICATION=spe-order -DPS_VERSION_APPLICATION=2.31.83-RELEASE'"},{"name":"ENV_PS_APPLICATION_PROFILE","value":"default"}],"image":"ci.integrast.com.br:18965/payshop/ps-spe-order:2.31.83-RELEASE","imagePullPolicy":"IfNotPresent","livenessProbe":{"failureThreshold":3,"httpGet":{"path":"/actuator/health","port":8080},"initialDelaySeconds":30,"periodSeconds":30},"name":"spe-order","ports":[{"containerPort":8080,"protocol":"TCP"}],"readinessProbe":{"failureThreshold":2,"httpGet":{"path":"/actuator/health","port":8080},"initialDelaySeconds":30,"periodSeconds":30},"resources":{"limits":{"cpu":"500m","memory":"512Mi"},"requests":{"cpu":"300m","memory":"512Mi"}}}]}}}}
+  creationTimestamp: 2019-07-25T10:28:44Z
+  generation: 37
+  labels:
+    app: spe-order
+    type: spe
+  name: spe-order
+  namespace: default
+  resourceVersion: "50253855"
+  selfLink: /apis/extensions/v1beta1/namespaces/default/deployments/spe-order
+  uid: fab75ab0-aec6-11e9-9edb-02421607eef4
+spec:
+  minReadySeconds: 60
+  progressDeadlineSeconds: 600
+  replicas: 1
+  revisionHistoryLimit: 10
+  selector:
+    matchLabels:
+      app: spe-order
+  strategy:
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 0
+    type: RollingUpdate
+  template:
+    metadata:
+      creationTimestamp: null
+      labels:
+        app: spe-order
+    spec:
+      affinity:
+        podAntiAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+          - labelSelector:
+              matchExpressions:
+              - key: app
+                operator: In
+                values:
+                - spe-order
+            topologyKey: kubernetes.oi/hostname
+      containers:
+      - env:
+        - name: ENV_PS_APPLICATION_MEMORY
+          value: -Xmx256m
+        - name: ENV_PS_EXTRAS
+          value: -DEUREKA_URL1=http://payshop-eureka-server:8761/eureka/eureka -DSERVER_CONFIG=http://payshop-config-server:8888
+            -DPS_NAME_APPLICATION=spe-order -DPS_VERSION_APPLICATION=2.31.83-RELEASE'
+        - name: ENV_PS_APPLICATION_PROFILE
+          value: default
+        image: registry.integrast.com.br:18965/payshop/ps-spe-order:2.31.83-RELEASE
+        imagePullPolicy: IfNotPresent
+        livenessProbe:
+          failureThreshold: 3
+          httpGet:
+            path: /actuator/health
+            port: 8080
+            scheme: HTTP
+          initialDelaySeconds: 30
+          periodSeconds: 30
+          successThreshold: 1
+          timeoutSeconds: 1
+        name: spe-order
+        ports:
+        - containerPort: 8080
+          protocol: TCP
+        readinessProbe:
+          failureThreshold: 2
+          httpGet:
+            path: /actuator/health
+            port: 8080
+            scheme: HTTP
+          initialDelaySeconds: 30
+          periodSeconds: 30
+          successThreshold: 1
+          timeoutSeconds: 1
+        resources:
+          limits:
+            cpu: 500m
+            memory: 512Mi
+          requests:
+            cpu: 300m
+            memory: 512Mi
+        terminationMessagePath: /dev/termination-log
+        terminationMessagePolicy: File
+      dnsPolicy: ClusterFirst
+      restartPolicy: Always
+      schedulerName: default-scheduler
+      securityContext: {}
+      terminationGracePeriodSeconds: 30
+status:
+  availableReplicas: 1
+  conditions:
+  - lastTransitionTime: 2019-08-12T23:03:26Z
+    lastUpdateTime: 2019-08-12T23:03:26Z
+    message: Deployment has minimum availability.
+    reason: MinimumReplicasAvailable
+    status: "True"
+    type: Available
+  - lastTransitionTime: 2019-10-05T13:27:16Z
+    lastUpdateTime: 2019-11-18T01:01:26Z
+    message: ReplicaSet "spe-order-888cbcf79" has successfully progressed.
+    reason: NewReplicaSetAvailable
+    status: "True"
+    type: Progressing
+  observedGeneration: 37
+  readyReplicas: 1
+  replicas: 1
+  updatedReplicas: 1

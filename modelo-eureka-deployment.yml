@@ -1,0 +1,217 @@
+
+###########################################################################################################
+####################################### Modelo de Deployment ##############################################
+###########################################################################################################
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: exemplo-eureka-server
+  namespace: default
+  labels:
+    app: exemplo-eureka-server
+    type: core
+spec:
+###########################################################################################################
+#####  'replicas' - Aqui temos a quantidade de réplicas que serão criadas nesse rollout.
+#####  É importante saber que a quantidade atual de réplicas não é levada em conta,
+#####  então uma boa estratégia é ler a quantidade atual de réplicas e substituir no seu arquivo
+##### de deployment Evita que uma aplicaao com muitas replicas fique com uma quantidade insuficiente
+#####  apos o processo de rollout
+###########################################################################################################
+  replicas: 1
+###########################################################################################################
+#  'minReadySeconds' - Nessa opção configuramos o tempo (em segundos), que os pods criados pelo seu deployment
+#  irão esperar para estarem disponíveis. Se sua aplicação consome muita CPU na inicialização,
+#  essa configuração pode ser uma ótima alternativa para estabilização dos pods antes de começarem
+#  a receber requisições.
+###########################################################################################################
+  minReadySeconds: 60
+  strategy:
+###########################################################################################################
+#  'rollingUpdate' - Essa estratégia cria um novo ReplicaSet a partir das alterações feitas no deployment
+#  e vai diminuindo a quantidade de pods do ReplicaSet antigo, à medida que consegue aumentar a quantidade
+#  de pods do ReplicaSet novo. Dessa forma o rollout ocorre gradativamente e é possível acompanhar se
+#  quantidade de erros/tempo de resposta aumentam durante o processo.
+###########################################################################################################
+    rollingUpdate:
+###########################################################################################################
+#  'maxSurge' - Nesse campo especificamos a quantidade de pods que o novo ReplicaSet vai criar a mais antes
+#  de começar a terminar os pods do antigo ReplicaSet. Quanto maior o valor, mais rápido o rollout ocorre.
+###########################################################################################################
+      maxSurge: 1
+###########################################################################################################
+#  'maxUnavailable' - Essa é a principal opção para atingirmos HA no processo de rollout.
+#  Por padrão, o Kubernetes define uma margem de 25%, então, caso não coloquemos 0
+#  (que significa sem nenhum pod indisponível), existe a possibilidade da aplicação ficar com uma
+#  quantidade insuficiente de pods no momento do rollout, as chances de indisponibilidade aumentam
+#  consideravelmente.
+###########################################################################################################
+      maxUnavailable: 0
+    type: RollingUpdate
+  selector:
+    matchLabels:
+      app: exemplo-eureka-server
+  template:
+    metadata:
+      labels:
+        app: exemplo-eureka-server
+    spec:
+      affinity:
+        podAntiAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            - labelSelector:
+                matchExpressions:
+                  - key: app
+                    operator: In
+                    values:
+                      - exemplo-eureka-server
+              topologyKey: kubernetes.oi/hostname
+      containers:
+        - name: exemplo-eureka-server
+          imagePullPolicy: IfNotPresent
+          image: registry.integrast.com.br:<port>/exemplo/ps-zuul:<tag>
+          resources:
+            requests:
+              memory: 1024Mi
+              cpu: 500m
+            limits:
+              memory: 2048Mi
+              cpu: 1000m
+          ports:
+            - containerPort: 8761
+              protocol: TCP
+###########################################################################################################
+############################################# Healthcheck #################################################
+###########################################################################################################
+#############  Sua aplicação deve prover um endpoint que diga para o deployment ###########################
+#############  que uma instância está realmente pronta para receber tráfego.    ###########################
+###########################################################################################################
+###########################################################################################################
+###########################################################################################################
+#####  'livenessProbe' - Essa seção é usada pelo Kubernetes para verificar se os pods da sua
+#####   aplicação estão funcionais. Se em algum momento, dadas a configurações, essa verificação falhar,
+#####   o seu pod será reiniciado. Boas práticas para a implementação desse endpoint são checar conectividade
+#####   com as dependências, espaço em disco e tudo que possa influenciar no funcionamento da aplicação.
+###########################################################################################################
+          livenessProbe:
+            failureThreshold: 3
+            httpGet:
+              path: /actuator/health
+              port: 8761
+            initialDelaySeconds: 30
+            periodSeconds: 30
+###########################################################################################################
+#####  'readinessProbe' - Durante um rollout o Kubernetes usa essa seção para saber se os pods da
+#####   sua aplicação estão prontos para receber tráfego. É muito importante para obter HA durante
+#####   o processo de rollout. Boas práticas para a implementação desse endpoint incluem Signal Handling,
+#####   por exemplo, encerrar conexões persistentes quando receber SIGTERM ou SIGINT, aguardar dados
+#####   necessários estarem em memória, conexões com dependências estabelecidas, etc.
+###########################################################################################################
+          readinessProbe:
+###########################################################################################################
+#####   'failureThreshold' - Informa quantas vezes uma falha deve ocorrer para a verificação
+#####   ser considerada com falha e o pod da aplicação sofrer um restart ou não receber tráfego.
+###########################################################################################################
+            failureThreshold: 2
+###########################################################################################################
+#####  'httpGet' - Como estamos falando de uma API HTTP, usamos esse campo para configurar o path   #######
+#####   e porta onde o Kubernetes vai bater para as verificações de readiness e liveness.           #######
+###########################################################################################################
+            httpGet:
+              path: /actuator/health
+              port: 8761
+###########################################################################################################
+#####   'initialDelaySeconds / periodSeconds' - De quanto em quanto tempo o Kubernetes vai executar #######
+#####   as verificações, sendo que a primeira pode ter um valor diferente das subsequentes.         #######
+#####   Se a aplicação demora para inicializar, vale a pena colocar um valor próximo desse tempo.   #######
+###########################################################################################################
+            initialDelaySeconds: 30
+            periodSeconds: 30
+          env:
+            - name: ENV_PS_APPLICATION_MEMORY
+              value: '-Xmx1024m'
+###########################################################################################################
+############################################# Service #####################################################
+###########################################################################################################
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: exemplo-eureka-server
+  namespace: default
+  labels:
+    app: exemplo-eureka-server
+spec:
+  ports:
+    - port: 8761
+      name: http
+      nodePort: 30002
+  selector:
+    app: exemplo-eureka-server
+  type: NodePort
+
+---
+###########################################################################################################
+############################################## HPA ########################################################
+###########################################################################################################
+####   Para garantir a disponibilidade de sua aplicação (principalmente quando ela não tem estado,    #####
+####   como depender de um banco de dados, por exemplo) é importante ter uma forma automática de      #####
+####   aumentar a quantidade de réplicas que ela possui. Para isso podemos configurar HPA             #####
+####   (Horizontal Pod Autoscaler) para nossos deployments.                                           #####
+###########################################################################################################
+###########################################################################################################
+apiVersion: autoscaling/v1
+kind: HorizontalPodAutoscaler
+metadata:
+  name: exemplo-eureka-server
+  namespace: default
+spec:
+###########################################################################################################
+####   'scaleTargetRef' - Aqui relacionamos esse HPA com o deployment pelo nome.                      #####
+###########################################################################################################
+  scaleTargetRef:
+    apiVersion: apps/v1beta1
+    kind: Deployment
+    name: exemplo-eureka-server
+###########################################################################################################
+####   'maxReplicas' - Quantidade mínima de pods independente da quantidade de CPU utilizada por eles.#####
+###########################################################################################################
+  maxReplicas: 1
+###########################################################################################################
+####   'minReplicas' - Limite de pods que esse HPA vai manter.                                        #####
+###########################################################################################################
+  minReplicas: 1
+###########################################################################################################
+####   'targetCPUUtilizationPercentage' - Qual o percentual de CPU que o HPA deve manter.             #####
+####   Conforme esse percentual for atingido, novos pods serão criados, ou caso o percentual          #####
+####   estiver abaixo, pods serão removidos. Sempre buscando estar o mais próximo possível dele.      #####
+###########################################################################################################
+  targetCPUUtilizationPercentage: 80
+
+---
+###########################################################################################################
+############################################## PDB ########################################################
+###########################################################################################################
+####   Podemos configurar o mínimo de replicas disponíveis de nossa aplicação durante uma             #####
+####   manutenção ou recuperação do cluster. Para isso temos o PDB (Pod Disruption Budget).           #####
+###########################################################################################################
+apiVersion: policy/v1beta1
+kind: PodDisruptionBudget
+metadata:
+  name: exemplo-eureka-server
+  namespace: default
+spec:
+  selector:
+###########################################################################################################
+####   'matchLabels' - Aqui relacionamos nossos pods com esse PDB através das suas labels.            #####
+###########################################################################################################
+    matchLabels:
+      app: exemplo-eureka-server
+###########################################################################################################
+####   'minAvailable' - Percentual mínimo de pods que devem estar disponíveis em caso                 #####
+####    de problemas no cluster. É importante ficar atento nesse passo para não colocar               #####
+####    um minAvailable inatingível, como 100%, pois assim os nodes do cluster que tenham             #####
+####    pods da sua aplicação nunca poderão ser terminados, travando atualizações no cluster,         #####
+####    por exemplo.                                                                                  #####
+###########################################################################################################
+  minAvailable: 50%

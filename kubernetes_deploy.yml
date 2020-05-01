@@ -1,0 +1,44 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: ci-fastshop-hello
+  labels:
+    app: ci-fastshop-hello
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: ci-fastshop-hello
+########################################################################
+# Pod template
+########################################################################
+  template:
+    metadata:
+      labels:
+        app: ci-fastshop-hello
+    spec:
+      containers:
+        - name: test
+          image: nexus.fastshop.com.br:8083/hello:__VERSION_PROJECT__
+          imagePullPolicy: Always
+          ports:
+            - containerPort: 8080
+      imagePullSecrets:
+        - name: gitlab-registry
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: ci-fastshop-hello
+  labels:
+    app: ci-fastshop-hello
+spec:
+  ports:
+  - port: 8080
+    nodePort: 30002
+    targetPort: 8080
+    protocol: TCP
+    name: http
+  type: NodePort
+  selector:
+    app: ci-fastshop-hello

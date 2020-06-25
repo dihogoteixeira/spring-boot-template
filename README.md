@@ -1,7 +1,4 @@
-#############################
-# DOCUMENTACAO DO GITLAB-CI #
-#############################
-
+# DOCUMENTACAO DO GITLAB-CI
 
 Para definir e entender o que sao `"STAGES"`:
  - https://docs.gitlab.com/ce/ci/yaml/README.html#stages

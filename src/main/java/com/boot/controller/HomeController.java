@@ -9,7 +9,7 @@ public class HomeController {
 	@RequestMapping("/")
 	public String home() {
 
-		return "Validação dev (SPRINT 1) - Review - hello word with gitlab CI/CD, nexus, spring boot on EKS by INTEGRAST for Adriano Cruz.";
+		return "Validação dev (SPRINT 1) - Review - hello word with gitlab CI/CD, nexus, spring boot on EKS by dteixeira.";
 	}
 
 }
